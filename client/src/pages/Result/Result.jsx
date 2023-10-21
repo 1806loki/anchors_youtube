@@ -1,35 +1,12 @@
 import { useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
 
 import "./Result.css";
 import Navbar from "../../layout/Navbar/Navbar";
 import Table from "../../components/Table/Table";
-
 const Result = () => {
   const location = useLocation();
-  const [videoResult, setVideoResult] = useState(null);
-  const [earnings, setEarnings] = useState(null);
+  const videoResult = location.state.videoData;
 
-  useEffect(() => {
-    if (location.state) {
-      setVideoResult(location.state.videoResult);
-      setEarnings(location.state.earnings);
-    }
-  }, [location.state]);
-
-  console.log("VideoData:", videoResult);
-  const dateString = videoResult && videoResult.items[0].snippet.publishedAt;
-
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    const formattedDate = new Date(dateString).toLocaleDateString(
-      undefined,
-      options
-    );
-    return formattedDate;
-  };
-
-  const formattedDate = formatDate(dateString);
   return (
     <div className="result">
       <Navbar />
@@ -53,17 +30,11 @@ const Result = () => {
             </svg>
             Top Earner video
           </h4>
-          <img
-            src={
-              videoResult &&
-              videoResult.items[0].snippet.thumbnails.standard.url
-            }
-            alt=""
-          />
-          <span>{`Uploaded on - ${formattedDate}`}</span>
+          <img src={videoResult["thumbnail"]} alt="" />
+          <span>{`Uploaded on - ${videoResult["formattedDate"]}`}</span>
         </div>
         <div className="hero2">
-          <h3>{videoResult && videoResult.items[0].snippet.localized.title}</h3>
+          <h3>{videoResult["title"]}</h3>
           <span>
             <svg
               width="19"
@@ -81,7 +52,7 @@ const Result = () => {
                 />
               </g>
             </svg>
-            {videoResult && videoResult.items[0].statistics.viewCount}
+            {videoResult["views"]}
           </span>
           <span>
             <svg
@@ -100,7 +71,7 @@ const Result = () => {
                 />
               </g>
             </svg>
-            {videoResult && videoResult.items[0].statistics.likeCount}
+            {videoResult["likes"]}
           </span>
           <span>
             <svg
@@ -119,7 +90,7 @@ const Result = () => {
                 />
               </g>
             </svg>
-            {videoResult && videoResult.items[0].statistics.commentCount}
+            {videoResult["comments"]}
           </span>
         </div>
         <div className="hero3">
@@ -139,12 +110,13 @@ const Result = () => {
                 />
               </g>
             </svg>
-            {earnings}
+            {videoResult["earnings"]}
           </h2>
           <button>Check How ?</button>
         </div>
       </div>
       <Table />
+      {/* {<Modal />} */}
     </div>
   );
 };

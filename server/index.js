@@ -1,32 +1,39 @@
-import express, { response } from "express";
+import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import fetch from "node-fetch";
 import mongoose from "mongoose";
+import nodemailer from "nodemailer";
 
 const app = express();
 const PORT = 3000;
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true }));
-
 mongoose.connect(
-  "mongodb+srv://admin:mongo123@cluster0.npb0l7b.mongodb.net/?retryWrites=true&w=majority",
+  "mongodb://admin:mongo123@ac-e85t195-shard-00-00.rzm9aia.mongodb.net:27017,ac-e85t195-shard-00-01.rzm9aia.mongodb.net:27017,ac-e85t195-shard-00-02.rzm9aia.mongodb.net:27017/?ssl=true&replicaSet=atlas-twp6sm-shard-0&authSource=admin&retryWrites=true&w=majority",
   {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   }
 );
 
-const videoMetricsSchema = new mongoose.Schema({
-  link: String,
+const Schema = mongoose.Schema;
+
+const videoMetricsSchema = new Schema({
   views: Number,
   likes: Number,
   comments: Number,
-  subscribers: Number,
+  formattedDate: String,
+  title: String,
+  thumbnail: String,
   earnings: Number,
+  ID: { type: String, unique: true, required: true },
 });
+
+const VideoMetrics = mongoose.model("VideoMetrics", videoMetricsSchema);
+
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.post("/api/videoMetrics", async (req, res) => {
   try {
@@ -42,6 +49,19 @@ app.post("/api/videoMetrics", async (req, res) => {
     const views = videoData.items[0].statistics.viewCount;
     const likes = videoData.items[0].statistics.likeCount;
     const comments = videoData.items[0].statistics.commentCount;
+    const title = videoData.items[0].snippet.localized.title;
+    const dateString = videoData.items[0].snippet.publishedAt;
+    const thumbnail = videoData.items[0].snippet.thumbnails.standard.url;
+    const ID = videoID;
+
+    const formattedDate = (dateString) => {
+      const options = { year: "numeric", month: "long", day: "numeric" };
+      const formattedDate = new Date(dateString).toLocaleDateString(
+        undefined,
+        options
+      );
+      return formattedDate;
+    };
 
     const channelID = videoData.items[0].snippet.channelId;
 
@@ -60,23 +80,21 @@ app.post("/api/videoMetrics", async (req, res) => {
     ) {
       return Math.min(subscribers, views) + 10 * comments + 5 * likes;
     };
-
-    const videoMetric = new VideoMetric({
-      link: link,
-      views: views,
-      likes: likes,
-      comments: comments,
-      subscribers: subscribers,
+    const responseData = {
+      views,
+      likes,
+      comments,
+      formattedDate: formattedDate(dateString),
+      title,
+      thumbnail,
+      ID,
       earnings: earnings(subscribers, views, comments, likes),
-    });
-    const VideoMetric = mongoose.model("VideoMetric", videoMetricsSchema);
+    };
 
-    await videoMetric.save();
+    const videoMetrics = new VideoMetrics(responseData);
+    await videoMetrics.save();
 
-    res.status(200).json({
-      videoData: videoData,
-      earnings: earnings(subscribers, views, comments, likes),
-    });
+    res.status(200).json(responseData);
   } catch (err) {
     console.error("Error in post request:", err.message);
     res
@@ -85,19 +103,50 @@ app.post("/api/videoMetrics", async (req, res) => {
   }
 });
 
-app.get("/api/videoMetrics", async (req, res) => {
+app.get("/api/getVideoMetrics", async (req, res) => {
   try {
-    // Retrieve data from MongoDB
-    const VideoMetric = mongoose.model("VideoMetric", videoMetricsSchema);
-
-    const videoMetrics = await VideoMetric.find();
+    const videoMetrics = await VideoMetrics.find().sort({ earnings: -1 });
     res.status(200).json(videoMetrics);
   } catch (err) {
-    console.error("Error in get request:", err.message);
+    console.error("Error fetching data:", err.message);
     res
       .status(500)
       .json({ error: "Internal Server Error", message: err.message });
   }
+});
+
+app.get("/api/videoMetrics", async (req, res) => {
+  res.send({});
+});
+
+app.post("/sendEmail", (req, res) => {
+  const { name, number, preferredTime, message } = req.body;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    secure: true,
+    auth: {
+      user: "nikagodzoro@gmail.com",
+      pass: "mwde fyeq dczd cmce",
+    },
+  });
+
+  const mailOptions = {
+    from: "nikagodzoro@gmail.com",
+    to: "ravi@anchors.in",
+    subject: "Call Back Request",
+    text: `My Name is ${name} and my number is ${number} , Give a Call at ${preferredTime} , ${message} `,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error(error);
+      res.status(500).send("Internal Server Error");
+    } else {
+      console.log("Email sent: " + info.response);
+      res.status(200).send("Email Sent Successfully");
+    }
+  });
 });
 
 app.listen(PORT, () => console.log(`Server is running at ${PORT} `));

@@ -34,21 +34,12 @@ const LandingPage = () => {
           },
         }
       );
-
-      const videoData = response.data.videoData;
-
-      const calculatedEarnings = await response.data.earnings;
-      setLink("");
-      setVideoData(videoData);
-      console.log(videoData);
-
-      setEarnings(calculatedEarnings);
-      console.log(calculatedEarnings);
+      const res = response.data;
 
       setTimeout(() => {
         setIsLoading(false);
         navigate("/result", {
-          state: { videoResult: videoData, earnings: calculatedEarnings },
+          state: { videoData: res },
         });
       }, 1000);
     } catch (err) {
@@ -123,7 +114,7 @@ const LandingPage = () => {
       </div>
       {isLoading && (
         <div className="loader">
-          <Progressbar progress={loadingProgress}/>
+          <Progressbar progress={loadingProgress} />
         </div>
       )}
     </div>
