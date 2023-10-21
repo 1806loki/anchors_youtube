@@ -2,6 +2,7 @@ import express, { response } from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import fetch from "node-fetch";
+import mongoose from "mongoose";
 
 const app = express();
 const PORT = 3000;
@@ -9,6 +10,23 @@ const PORT = 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
+
+mongoose.connect(
+  "mongodb+srv://admin:mongo123@cluster0.npb0l7b.mongodb.net/?retryWrites=true&w=majority",
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+);
+
+const videoMetricsSchema = new mongoose.Schema({
+  link: String,
+  views: Number,
+  likes: Number,
+  comments: Number,
+  subscribers: Number,
+  earnings: Number,
+});
 
 app.post("/api/videoMetrics", async (req, res) => {
   try {
@@ -43,6 +61,18 @@ app.post("/api/videoMetrics", async (req, res) => {
       return Math.min(subscribers, views) + 10 * comments + 5 * likes;
     };
 
+    const videoMetric = new VideoMetric({
+      link: link,
+      views: views,
+      likes: likes,
+      comments: comments,
+      subscribers: subscribers,
+      earnings: earnings(subscribers, views, comments, likes),
+    });
+    const VideoMetric = mongoose.model("VideoMetric", videoMetricsSchema);
+
+    await videoMetric.save();
+
     res.status(200).json({
       videoData: videoData,
       earnings: earnings(subscribers, views, comments, likes),
@@ -55,8 +85,19 @@ app.post("/api/videoMetrics", async (req, res) => {
   }
 });
 
-app.get("/api/videoMetrics", (req, res) => {
-  res.send("Hello World!");
+app.get("/api/videoMetrics", async (req, res) => {
+  try {
+    // Retrieve data from MongoDB
+    const VideoMetric = mongoose.model("VideoMetric", videoMetricsSchema);
+
+    const videoMetrics = await VideoMetric.find();
+    res.status(200).json(videoMetrics);
+  } catch (err) {
+    console.error("Error in get request:", err.message);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", message: err.message });
+  }
 });
 
 app.listen(PORT, () => console.log(`Server is running at ${PORT} `));
